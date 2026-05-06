@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omborxona - Inventory Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+:root {
+    --bg-color: #0f172a;
+    --surface-color: rgba(30, 41, 59, 0.6);
+    --surface-border: rgba(255, 255, 255, 0.08);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --primary-color: #3b82f6;
+    --primary-hover: #2563eb;
+    --danger-color: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.15);
+    --warning-color: #f59e0b;
+    --warning-bg: rgba(245, 158, 11, 0.15);
+    --success-color: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.15);
+    --input-bg: rgba(15, 23, 42, 0.6);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    min-height: 100vh;
+    background-image: 
+        radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+        radial-gradient(at 50% 0%, hsla(225,39%,30%,0.2) 0, transparent 50%), 
+        radial-gradient(at 100% 0%, hsla(339,49%,30%,0.2) 0, transparent 50%);
+    background-attachment: fixed;
+    overflow: hidden; /* Prevent body scroll, layout handles it */
+}
+
+/* Glassmorphism utility */
+.glass {
+    background: var(--surface-color);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--surface-border);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 280px;
+    margin: 20px;
+    padding: 30px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    position: relative;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.8rem;
+    color: var(--primary-color);
+}
+
+.logo h2 {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: -0.5px;
+}
+
+nav {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+}
+
+nav a {
+    text-decoration: none;
+    color: var(--text-secondary);
+    padding: 14px 18px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 500;
+    font-size: 1.05rem;
+}
+
+nav a:hover, nav a.active {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary-color);
+    transform: translateX(5px);
+}
+
+.sidebar-footer {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    padding: 20px 20px 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+/* Custom Scrollbar for Main Content */
+.main-content::-webkit-scrollbar { width: 8px; }
+.main-content::-webkit-scrollbar-track { background: transparent; }
+.main-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+.main-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* Category Cards */
+.category-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 24px;
+}
+
+.category-card {
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.category-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.category-card.active {
+    border-color: var(--primary-color);
+    background: var(--primary-gradient);
+    color: white;
+}
+
+.category-card h4 {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-bottom: 5px;
+}
+
+.category-card p {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 28px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    margin-bottom: 10px;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--input-bg);
+    padding: 12px 20px;
+    border-radius: 12px;
+    width: 350px;
+    border: 1px solid var(--surface-border);
+    transition: border-color 0.3s ease;
+}
+
+.search-bar:focus-within {
+    border-color: var(--primary-color);
+}
+
+.search-bar i {
+    color: var(--text-secondary);
+}
+
+.search-bar input {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    outline: none;
+    width: 100%;
+    font-size: 0.95rem;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.btn-secondary {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-primary);
+    border: 1px solid var(--surface-border);
+}
+
+.btn-secondary:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.btn-icon {
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    font-size: 1rem;
+}
+
+.btn-icon:hover {
+    background: rgba(255,255,255,0.1);
+    color: var(--text-primary);
+}
+
+.btn-icon.edit:hover { color: var(--primary-color); background: rgba(59, 130, 246, 0.1); }
+.btn-icon.delete:hover { color: var(--danger-color); background: var(--danger-bg); }
+
+.avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    cursor: pointer;
+}
+
+/* Dashboard Cards */
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+}
+
+.card {
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.card-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+}
+
+.card-icon.blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.card-icon.yellow { background: var(--warning-bg); color: var(--warning-color); }
+.card-icon.red { background: var(--danger-bg); color: var(--danger-color); }
+
+.card-info h3 {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.card-info p {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -1px;
+}
+
+/* Table */
+.table-container {
+    padding: 28px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.table-header {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-header h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 18px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--surface-border);
+}
+
+th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+td {
+    font-size: 0.95rem;
+}
+
+tr {
+    transition: background 0.2s ease;
+}
+
+tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.product-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.category-tag {
+    color: var(--text-secondary);
+}
+
+.status-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-normal { background: var(--success-bg); color: var(--success-color); border: 1px solid rgba(16, 185, 129, 0.2); }
+.status-normal::before { background: var(--success-color); }
+
+.status-warning { background: var(--warning-bg); color: var(--warning-color); border: 1px solid rgba(245, 158, 11, 0.2); }
+.status-warning::before { background: var(--warning-color); box-shadow: 0 0 8px var(--warning-color); }
+
+.status-danger { background: var(--danger-bg); color: var(--danger-color); border: 1px solid rgba(239, 68, 68, 0.2); }
+.status-danger::before { background: var(--danger-color); box-shadow: 0 0 8px var(--danger-color); }
+
+.actions {
+    display: flex;
+    gap: 4px;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal.show {
+    display: flex;
+    opacity: 1;
+}
+
+.modal-content {
+    width: 100%;
+    max-width: 550px;
+    padding: 36px;
+    transform: translateY(30px) scale(0.95);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal.show .modal-content {
+    transform: translateY(0) scale(1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.modal-header h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--surface-border);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    color: var(--danger-color);
+    background: var(--danger-bg);
+    border-color: transparent;
+    transform: rotate(90deg);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+input, select {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--input-bg);
+    border: 1px solid var(--surface-border);
+    border-radius: 10px;
+    color: var(--text-primary);
+    outline: none;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+}
+
+input:focus, select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+input::placeholder {
+    color: rgba(255,255,255,0.3);
+}
+
+/* Custom select styling */
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+}
+
+select option {
+    background: var(--bg-color);
+    color: var(--text-primary);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    margin-top: 36px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .dashboard-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: auto;
+        margin: 10px;
+        padding: 20px;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+    }
+    nav {
+        flex-direction: row;
+        flex: unset;
+    }
+    nav a span {
+        display: none; /* Hide text, show only icons */
+    }
+    .sidebar-footer {
+        display: none;
+    }
+    .main-content {
+        padding: 10px;
+    }
+    .header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+    .search-bar {
+        width: 100%;
+    }
+}
+
+</style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass">
+            <div class="logo">
+                <i class="fa-solid fa-boxes-stacked"></i>
+                <h2>Omborxona</h2>
+            </div>
+            <nav>
+                <a href="#" class="active" id="navDashboard"><i class="fa-solid fa-chart-pie"></i> Asosiy Panel</a>
+                <a href="#productsTable" id="navProducts"><i class="fa-solid fa-box"></i> Mahsulotlar</a>
+                <a href="#" id="navHistory"><i class="fa-solid fa-history"></i> Amallar Tarixi</a>
+                <a href="#" onclick="alert('Sozlamalar bo\'limi loyihaning keyingi kengaytirilgan versiyasida to\'liq ishga tushiriladi! Hozircha barcha funksiyalar Asosiy panelda joylashgan.'); return false;"><i class="fa-solid fa-gear"></i> Sozlamalar</a>
+            </nav>
+            <div class="sidebar-footer">
+                <p>v1.0.0</p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header glass">
+                <div class="search-bar">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Mahsulot qidirish...">
+                </div>
+                <div style="margin-left: 20px; font-weight: bold; color: var(--primary-color);" id="currentFilterLabel"></div>
+                <div class="user-profile">
+                    <div id="notificationArea" style="position: relative; margin-right: 15px;">
+                        <button id="notifBell" class="btn-icon" style="font-size: 1.3rem; color: var(--text-secondary);">
+                            <i class="fa-solid fa-bell"></i>
+                            <span id="notifCount" style="display:none; position: absolute; top: -5px; right: -5px; background: var(--danger-color); color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; font-weight: bold;">0</span>
+                        </button>
+                        <div id="notifDropdown" class="glass" style="display:none; position: absolute; top: 50px; right: 0; width: 320px; max-height: 450px; overflow-y: auto; z-index: 2000; padding: 20px; border: 1px solid var(--primary-color); box-shadow: 0 15px 50px rgba(0,0,0,0.5);">
+                            <h4 style="margin-bottom: 15px; font-size: 1rem; border-bottom: 1px solid var(--surface-border); padding-bottom: 10px;">Bildirishnomalar</h4>
+                            <div id="notifList" style="font-size: 0.9rem; color: var(--text-primary);">
+                                Xabarlar yo'q
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Yashirin fayl tanlash darchasi -->
+                    <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+                    <button id="importCsvBtn" class="btn btn-secondary" style="color: var(--success-color); border-color: rgba(16, 185, 129, 0.3);"><i class="fa-solid fa-file-import"></i> CSV yuklash</button>
+                    
+                    <a href="/api/export/csv" class="btn btn-secondary" style="color: var(--primary-color); border-color: rgba(99, 102, 241, 0.3); text-decoration: none;"><i class="fa-solid fa-file-csv"></i> Excelga saqlash</a>
+                    <button id="deleteAllBtn" class="btn btn-secondary" style="color: var(--danger-color); border-color: rgba(239, 68, 68, 0.3);"><i class="fa-solid fa-trash-can"></i> Barchasini O'chirish</button>
+                    <button id="addProductBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Yangi Qo'shish</button>
+                    <div class="avatar">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="dashboard-cards">
+                <div class="card glass">
+                    <div class="card-icon blue"><i class="fa-solid fa-layer-group"></i></div>
+                    <div class="card-info">
+                        <h3>Jami Mahsulot Turlari</h3>
+                        <p id="totalProducts">0</p>
+                    </div>
+                </div>
+                <div class="card glass">
+                    <div class="card-icon yellow"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="card-info">
+                        <h3>Kam Qolgan</h3>
+                        <p id="lowStockProducts">0</p>
+                    </div>
+                </div>
+                <div class="card glass">
+                    <div class="card-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+                    <div class="card-info">
+                        <h3>Tugagan</h3>
+                        <p id="outOfStockProducts">0</p>
+                    </div>
+                </div>
+                <div class="card glass">
+                    <div class="card-icon blue" style="background: var(--success-bg); color: var(--success-color);"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+                    <div class="card-info">
+                        <h3>Jami Qiymat</h3>
+                        <p id="totalValue" style="font-size: 1.5rem;">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="categoryStats" class="category-stats" style="margin-top: 20px;">
+                <!-- Category items will be here -->
+            </div>
+
+            <div class="charts-container" style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; margin-bottom: 24px;">
+                <div class="card glass" style="padding: 20px;">
+                    <h3 style="margin-bottom: 15px; font-size: 1rem;">Toifalar ulushi</h3>
+                    <div style="height: 250px; display: flex; justify-content: center;">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+                <div class="card glass" style="padding: 20px;">
+                    <h3 style="margin-bottom: 15px; font-size: 1rem;">Mahsulotlar qoldig'i (Top 10)</h3>
+                    <div style="height: 250px;">
+                        <canvas id="stockChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="productsContainer" class="table-container glass">
+                <div class="table-header">
+                    <h3>Barcha Mahsulotlar</h3>
+                </div>
+                <div class="table-responsive">
+                    <table id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>Nomi</th>
+                                <th>Toifasi</th>
+                                <th>Miqdori</th>
+                                <th>Narxi</th>
+                                <th>Jami Summa</th>
+                                <th>Min. Chegara</th>
+                                <th>Holati</th>
+                                <th>Amallar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Rows will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="historyContainer" class="table-container glass" style="display:none; margin-top: 24px;">
+                <div class="table-header">
+                    <h3>Oxirgi Amallar Tarixi</h3>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Vaqti</th>
+                                <th>Mahsulot</th>
+                                <th>Amal</th>
+                                <th>Miqdori</th>
+                                <th>Narxi</th>
+                                <th>Jami</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <!-- Transactions will be here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    <div id="productModal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h2 id="modalTitle">Mahsulot Qo'shish</h2>
+                <button id="closeModalBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="productForm">
+                <input type="hidden" id="productId">
+                <div class="form-group">
+                    <label for="productName">Mahsulot Nomi</label>
+                    <input type="text" id="productName" placeholder="Masalan: Qalam">
+                </div>
+                <div class="form-group">
+                    <label for="productCategory">Toifasi</label>
+                    <input type="text" id="productCategory" list="categorySuggestions" placeholder="Masalan: Kantselyariya">
+                    <datalist id="categorySuggestions">
+                        <!-- Categories will be added here dynamically -->
+                    </datalist>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productQuantity">Qoldiq Miqdori</label>
+                        <input type="number" id="productQuantity" min="0" step="0.01" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="productUnit">O'lchov birligi</label>
+                        <select id="productUnit">
+                            <option value="dona">Dona</option>
+                            <option value="kg">Kg</option>
+                            <option value="litr">Litr</option>
+                            <option value="quti">Quti</option>
+                            <option value="metr">Metr</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="productPrice">Narxi (1 dona/birlik uchun)</label>
+                    <input type="number" id="productPrice" min="0" step="100" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label for="productMin">Minimal chegara (ogohlantirish uchun)</label>
+                    <input type="number" id="productMin" min="0" step="0.01" placeholder="Masalan: 10">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn" onclick="closeModal()">Bekor qilish</button>
+                    <button type="button" class="btn btn-primary" id="saveAndAddBtn" style="background: var(--success-color); border-color: var(--success-color);">Saqlash va Yana</button>
+                    <button type="button" class="btn btn-primary" id="saveBtn">Saqlash</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Withdraw (Chiqarish) -->
+    <div id="withdrawModal" class="modal">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h2>Mahsulot Chiqarish</h2>
+                <button onclick="closeWithdrawModal()" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div>
+                <input type="hidden" id="withdrawProductId">
+                <div class="form-group">
+                    <label>Mahsulot: <span id="withdrawProductName" style="color: var(--primary-color);"></span></label>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">Ombordagi qoldiq: <span id="withdrawCurrentStock"></span></p>
+                </div>
+                <div class="form-group">
+                    <label for="withdrawQuantity">Chiqarish soni (miqdori)</label>
+                    <input type="number" id="withdrawQuantity" min="0.01" step="0.01" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label for="withdrawPrice">Chiqarish narxi (Sotuv narxi)</label>
+                    <input type="number" id="withdrawPrice" min="0" step="100" placeholder="0">
+                </div>
+                <div id="withdrawTotalDisplay" style="margin-top: 15px; padding: 10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; border: 1px dashed var(--warning-color); text-align: center;">
+                    <span style="font-size: 0.9rem; color: var(--text-secondary);">Umumiy chiqarish summasi:</span><br>
+                    <strong id="withdrawTotalAmount" style="font-size: 1.2rem; color: var(--warning-color);">0</strong> <small>so'm</small>
+                </div>
+                <div class="form-actions" style="margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeWithdrawModal()">Bekor qilish</button>
+                    <button type="button" class="btn btn-primary" id="confirmWithdrawBtn" style="background: var(--warning-color); border-color: var(--warning-color);">Tasdiqlash va Chiqarish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+// State
+let products = [];
+let categoryChart = null;
+let stockChart = null;
+
+// DOM elementlari
+const productsTable = document.getElementById('tableBody');
+const searchInput = document.getElementById('searchInput');
+const addProductBtn = document.getElementById('addProductBtn');
+const productModal = document.getElementById('productModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const cancelBtn = document.getElementById('cancelBtn');
+
+// Modal maydonlari
+const modalTitle = document.getElementById('modalTitle');
+const productId = document.getElementById('productId');
+const productName = document.getElementById('productName');
+const productCategory = document.getElementById('productCategory');
+const productQuantity = document.getElementById('productQuantity');
+const productUnit = document.getElementById('productUnit');
+const productMin = document.getElementById('productMin');
+
+// Statistika elementlari
+const totalProductsEl = document.getElementById('totalProducts');
+const lowStockProductsEl = document.getElementById('lowStockProducts');
+const outOfStockProductsEl = document.getElementById('outOfStockProducts');
+const totalValueEl = document.getElementById('totalValue');
+const notifBell = document.getElementById('notifBell');
+const notifDropdown = document.getElementById('notifDropdown');
+const notifList = document.getElementById('notifList');
+const notifCount = document.getElementById('notifCount');
+
+// Bildirishnoma ochish/yopish
+notifBell.addEventListener('click', (e) => {
+    e.stopPropagation();
+    notifDropdown.style.display = notifDropdown.style.display === 'none' ? 'block' : 'none';
+});
+document.addEventListener('click', () => {
+    notifDropdown.style.display = 'none';
+});
+notifDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+// Boshlang'ich yuklash (API orqali)
+async function init() {
+    try {
+        const response = await fetch('/api/products');
+        products = await response.json();
+        renderTable();
+        updateDashboard();
+        fetchTransactions(); // Tarixni yangilash
+        updateCharts(); // Grafikni yangilash
+    } catch (e) {
+        console.error("Server bilan bog'lanishda xatolik:", e);
+        alert("Serverdan ma'lumot olishda xatolik yuz berdi!");
+    }
+}
+
+// Tarixni olish
+async function fetchTransactions() {
+    try {
+        const response = await fetch('/api/transactions');
+        const transactions = await response.json();
+        renderTransactions(transactions);
+    } catch (e) {
+        console.error("Tarixni yuklashda xato:", e);
+    }
+}
+
+function renderTransactions(list) {
+    const tbody = document.getElementById('historyTableBody');
+    tbody.innerHTML = '';
+    list.forEach(t => {
+        const tr = document.createElement('tr');
+        const total = (t.quantity * t.price).toLocaleString();
+        const date = new Date(t.date).toLocaleString('uz-UZ');
+        const typeColor = t.type === 'Kirim' ? 'var(--success-color)' : 'var(--warning-color)';
+        
+        tr.innerHTML = `
+            <td style="font-size: 0.8rem; color: var(--text-secondary);">${date}</td>
+            <td><strong>${t.product_name}</strong></td>
+            <td><span style="color: ${typeColor}; font-weight: bold;">${t.type}</span></td>
+            <td>${t.quantity} ${t.unit}</td>
+            <td>${t.price.toLocaleString()}</td>
+            <td><strong>${total}</strong></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Jadvalni chizish
+function renderTable(filter = '') {
+    productsTable.innerHTML = '';
+    
+    const filterStr = filter ? String(filter).toLowerCase() : '';
+    const filteredProducts = products.filter(p => {
+        const nameStr = p.name ? String(p.name).toLowerCase() : '';
+        const catStr = p.category ? String(p.category).toLowerCase() : '';
+        const matchesSearch = nameStr.includes(filterStr) || catStr.includes(filterStr);
+        const matchesCategory = activeCategory ? p.category === activeCategory : true;
+        return matchesSearch && matchesCategory;
+    });
+
+    if(filteredProducts.length === 0) {
+        productsTable.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 30px;">Mahsulot topilmadi</td></tr>`;
+        return;
+    }
+
+    filteredProducts.forEach(product => {
+        const tr = document.createElement('tr');
+        
+        let statusHtml = '';
+        if (product.quantity <= 0) {
+            statusHtml = '<span class="status-badge status-danger">Tugagan</span>';
+        } else if (product.quantity <= product.min) {
+            statusHtml = '<span class="status-badge status-warning">Kam qolgan</span>';
+        } else {
+            statusHtml = '<span class="status-badge status-normal">Yaxshi</span>';
+        }
+
+        const totalItemPrice = (product.quantity * product.price).toLocaleString();
+        const formattedPrice = (product.price || 0).toLocaleString();
+
+        tr.innerHTML = `
+            <td><span class="product-name">${product.name}</span></td>
+            <td><span class="category-tag">${product.category}</span></td>
+            <td><strong>${product.quantity}</strong> <span style="color: var(--text-secondary); font-size:0.85rem;">${product.unit}</span></td>
+            <td>${formattedPrice} <small>so'm</small></td>
+            <td style="color: var(--primary-color); font-weight: 600;">${totalItemPrice} <small>so'm</small></td>
+            <td>${product.min} <span style="color: var(--text-secondary); font-size:0.85rem;">${product.unit}</span></td>
+            <td>${statusHtml}</td>
+            <td class="actions">
+                <button class="btn-icon withdraw" style="color: #f59e0b;" onclick="withdrawProduct(${product.id})" title="Ombordan chiqarish"><i class="fa-solid fa-minus-circle"></i> Chiqarish</button>
+                <button class="btn-icon edit" onclick="editProduct(${product.id})" title="Tahrirlash"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-icon delete" style="color: var(--danger-color); font-size: 0.9rem;" onclick="deleteProduct(${product.id})" title="Bitta mahsulotni o'chirish"><i class="fa-solid fa-trash"></i> Bitta o'chirish</button>
+            </td>
+        `;
+        productsTable.appendChild(tr);
+    });
+}
+
+// Statistikani yangilash
+function updateDashboard() {
+    const total = products.length;
+    const lowStock = products.filter(p => p.quantity > 0 && p.quantity <= p.min).length;
+    const outOfStock = products.filter(p => p.quantity <= 0).length;
+    
+    const totalValue = products.reduce((sum, p) => sum + (p.quantity * p.price), 0);
+
+    animateValue(totalProductsEl, parseInt(totalProductsEl.innerText) || 0, total);
+    animateValue(lowStockProductsEl, parseInt(lowStockProductsEl.innerText) || 0, lowStock);
+    animateValue(outOfStockProductsEl, parseInt(outOfStockProductsEl.innerText) || 0, outOfStock);
+    
+    totalValueEl.innerText = totalValue.toLocaleString() + " so'm";
+
+    updateCategoryStats();
+    updateCharts();
+    checkNotifications();
+}
+
+// Grafiklarni yangilash
+function updateCharts() {
+    if (typeof Chart === 'undefined') {
+        console.error("Chart.js kutubxonasi yuklanmagan! Internetga ulanishni tekshiring.");
+        return;
+    }
+
+    const catCtx = document.getElementById('categoryChart');
+    const stockCtx = document.getElementById('stockChart');
+    if (!catCtx || !stockCtx) return;
+
+    const categories = {};
+    products.forEach(p => {
+        const cat = p.category || "Boshqa";
+        categories[cat] = (categories[cat] || 0) + 1;
+    });
+
+    const catLabels = Object.keys(categories);
+    const catData = Object.values(categories);
+
+    if (catLabels.length === 0) return;
+
+    // Toifalar grafigi (Doughnut)
+    if (categoryChart) categoryChart.destroy();
+    categoryChart = new Chart(catCtx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: catLabels,
+            datasets: [{
+                data: catData,
+                backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } }
+            }
+        }
+    });
+
+    // Qoldiqlar grafigi (Bar) - Top 10 mahsulot
+    const sortedProducts = [...products].sort((a, b) => b.quantity - a.quantity).slice(0, 10);
+    const stockLabels = sortedProducts.map(p => p.name.length > 15 ? p.name.substring(0, 15) + '..' : p.name);
+    const stockData = sortedProducts.map(p => p.quantity);
+
+    if (stockChart) stockChart.destroy();
+    stockChart = new Chart(stockCtx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: stockLabels,
+            datasets: [{
+                label: 'Miqdori',
+                data: stockData,
+                backgroundColor: 'rgba(99, 102, 241, 0.5)',
+                borderColor: '#6366f1',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+let activeCategory = null;
+
+// Toifalar statistikasini yangilash
+function updateCategoryStats() {
+    const categories = {};
+    products.forEach(p => {
+        const cat = p.category || "Boshqa";
+        categories[cat] = (categories[cat] || 0) + 1;
+    });
+
+    const container = document.getElementById('categoryStats');
+    const datalist = document.getElementById('categorySuggestions');
+    container.innerHTML = '';
+    datalist.innerHTML = '';
+
+    // "Barchasi" kartasi
+    const allCard = document.createElement('div');
+    allCard.className = `card glass category-card ${!activeCategory ? 'active' : ''}`;
+    allCard.innerHTML = `<h4>Barcha toifalar</h4><p>${products.length}</p>`;
+    allCard.onclick = () => filterByCategory(null);
+    container.appendChild(allCard);
+
+    Object.keys(categories).sort().forEach(cat => {
+        // Kartani qo'shish
+        const card = document.createElement('div');
+        card.className = `card glass category-card ${activeCategory === cat ? 'active' : ''}`;
+        card.innerHTML = `<h4>${cat}</h4><p>${categories[cat]}</p>`;
+        card.onclick = () => filterByCategory(cat);
+        container.appendChild(card);
+
+        // Datalist ga taklif qo'shish
+        const option = document.createElement('option');
+        option.value = cat;
+        datalist.appendChild(option);
+    });
+}
+
+function filterByCategory(cat) {
+    activeCategory = cat;
+    document.getElementById('currentFilterLabel').innerText = cat ? `Saralash: ${cat}` : '';
+    renderTable();
+    updateCategoryStats();
+}
+
+// Bildirishnomalarni tekshirish
+function checkNotifications() {
+    const lowItems = products.filter(p => p.quantity <= p.min);
+    notifList.innerHTML = '';
+    
+    if (lowItems.length > 0) {
+        notifCount.style.display = 'block';
+        notifCount.innerText = lowItems.length;
+        
+        lowItems.forEach(item => {
+            const div = document.createElement('div');
+            div.style.padding = '8px 0';
+            div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+            const statusText = item.quantity <= 0 ? "TUGADI!" : "Kam qoldi!";
+            const statusColor = item.quantity <= 0 ? 'var(--danger-color)' : 'var(--warning-color)';
+            
+            div.innerHTML = `
+                <strong style="color: ${statusColor}">${statusText}</strong><br>
+                ${item.name}: ${item.quantity} ${item.unit} qoldi.
+            `;
+            notifList.appendChild(div);
+        });
+    } else {
+        notifCount.style.display = 'none';
+        notifList.innerHTML = 'Hozircha muammolar yo\'q.';
+    }
+}
+
+// Raqamlarni animatsiya bilan o'zgartirish
+function animateValue(obj, start, end, duration = 800) {
+    if (start === end) {
+        obj.innerHTML = end;
+        return;
+    }
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const easeProgress = 1 - Math.pow(1 - progress, 4);
+        obj.innerHTML = Math.floor(easeProgress * (end - start) + start);
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        } else {
+            obj.innerHTML = end;
+        }
+    };
+    window.requestAnimationFrame(step);
+}
+
+// Modal ochish
+function openModal(editMode = false) {
+    productModal.classList.add('show');
+    const saveAndAddBtn = document.getElementById('saveAndAddBtn');
+    if (!editMode) {
+        modalTitle.innerText = "Yangi Mahsulot Qo'shish";
+        document.getElementById('productName').value = '';
+        document.getElementById('productCategory').value = '';
+        document.getElementById('productQuantity').value = '';
+        document.getElementById('productMin').value = '';
+        document.getElementById('productPrice').value = '';
+        document.getElementById('productUnit').value = 'dona';
+        productId.value = '';
+        if (saveAndAddBtn) saveAndAddBtn.style.display = 'inline-block';
+    } else {
+        if (saveAndAddBtn) saveAndAddBtn.style.display = 'none';
+    }
+    setTimeout(() => productName.focus(), 100);
+}
+
+// Modal yopish
+function closeModal() {
+    productModal.classList.remove('show');
+}
+
+// Saqlash / Tahrirlash (API orqali)
+async function saveProductData(isAddingAnother) {
+    try {
+        const nameVal = productName.value.trim();
+        const catVal = productCategory.value.trim();
+        
+        if (!nameVal) {
+            alert("Iltimos, mahsulot nomini kiriting!");
+            productName.focus();
+            return;
+        }
+        
+        if (!catVal) {
+            alert("Iltimos, mahsulot toifasini kiriting!");
+            productCategory.focus();
+            return;
+        }
+
+        const qty = parseFloat(productQuantity.value);
+        const minQty = parseFloat(productMin.value);
+
+        const payload = {
+            name: nameVal,
+            category: catVal,
+            quantity: isNaN(qty) ? 0 : qty,
+            unit: productUnit.value || 'dona',
+            min: isNaN(minQty) ? 0 : minQty,
+            price: parseFloat(document.getElementById('productPrice').value) || 0
+        };
+
+        const btn = isAddingAnother ? document.getElementById('saveAndAddBtn') : document.getElementById('saveBtn');
+        const originalText = btn.innerText;
+        btn.innerText = "Saqlanmoqda...";
+        btn.disabled = true;
+
+        if (productId.value && !isAddingAnother) {
+            // Tahrirlash
+            await fetch(`/api/products/${productId.value}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } else {
+            // Yangi qo'shish
+            await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        }
+        
+        btn.innerText = isAddingAnother ? "Qo'shildi!" : "Saqlash";
+        btn.disabled = false;
+        
+        if (isAddingAnother) {
+            setTimeout(() => btn.innerText = "Saqlash va Yana", 1500);
+            productName.value = '';
+            productQuantity.value = '';
+            productMin.value = '';
+            document.getElementById('productPrice').value = '';
+            productName.focus();
+            productId.value = '';
+            await init(); // Jadvalni orqa fonda yangilash
+        } else {
+            closeModal();
+            await init(); // Jadvalni qayta yuklash
+        }
+    } catch (err) {
+        console.error("Saqlashda xatolik:", err);
+        alert("Server bilan bog'lanishda xatolik yuz berdi!");
+        const btn = isAddingAnother ? document.getElementById('saveAndAddBtn') : document.getElementById('saveBtn');
+        btn.innerText = isAddingAnother ? "Saqlash va Yana" : "Saqlash";
+        btn.disabled = false;
+    }
+}
+
+document.getElementById('saveBtn').addEventListener('click', () => saveProductData(false));
+const saveAndAddBtn = document.getElementById('saveAndAddBtn');
+if (saveAndAddBtn) saveAndAddBtn.addEventListener('click', () => saveProductData(true));
+
+// O'chirish (API orqali)
+window.deleteProduct = async function(id) {
+    const product = products.find(p => p.id === id);
+    if(confirm(`Rostdan ham bitta "${product.name}" mahsulotini o'chirmoqchimisiz?`)) {
+        try {
+            await fetch(`/api/products/${id}`, { method: 'DELETE' });
+            await init();
+        } catch (e) {
+            alert("O'chirishda xatolik yuz berdi!");
+        }
+    }
+}
+
+// Ombordan chiqarish (Modal orqali)
+window.withdrawProduct = function(id) {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    
+    document.getElementById('withdrawProductId').value = id;
+    document.getElementById('withdrawProductName').innerText = product.name;
+    document.getElementById('withdrawCurrentStock').innerText = `${product.quantity} ${product.unit}`;
+    document.getElementById('withdrawQuantity').value = '';
+    document.getElementById('withdrawPrice').value = product.price || 0;
+    updateWithdrawTotal();
+    
+    document.getElementById('withdrawModal').classList.add('show');
+    setTimeout(() => document.getElementById('withdrawQuantity').focus(), 100);
+}
+
+function updateWithdrawTotal() {
+    const qty = parseFloat(document.getElementById('withdrawQuantity').value) || 0;
+    const price = parseFloat(document.getElementById('withdrawPrice').value) || 0;
+    const total = qty * price;
+    document.getElementById('withdrawTotalAmount').innerText = total.toLocaleString();
+}
+
+document.getElementById('withdrawQuantity').addEventListener('input', updateWithdrawTotal);
+document.getElementById('withdrawPrice').addEventListener('input', updateWithdrawTotal);
+
+function closeWithdrawModal() {
+    document.getElementById('withdrawModal').classList.remove('show');
+}
+
+document.getElementById('confirmWithdrawBtn').addEventListener('click', async () => {
+    const id = document.getElementById('withdrawProductId').value;
+    const qty = parseFloat(document.getElementById('withdrawQuantity').value);
+    const price = parseFloat(document.getElementById('withdrawPrice').value);
+    
+    if (isNaN(qty) || qty <= 0) {
+        alert("Iltimos, to'g'ri miqdor kiriting!");
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/products/${id}/withdraw`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: qty, price: price })
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            closeWithdrawModal();
+            await init();
+        } else {
+            alert("Xatolik: " + result.error);
+        }
+    } catch (e) {
+        alert("Server bilan bog'lanishda xatolik yuz berdi!");
+    }
+});
+
+// Navigatsiya
+document.getElementById('navDashboard').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    document.getElementById('navDashboard').classList.add('active');
+    document.querySelector('.dashboard-cards').style.display = 'grid';
+    document.getElementById('productsContainer').style.display = 'flex';
+    document.getElementById('historyContainer').style.display = 'none';
+});
+
+document.getElementById('navProducts').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    document.getElementById('navProducts').classList.add('active');
+    document.querySelector('.dashboard-cards').style.display = 'none';
+    document.getElementById('productsContainer').style.display = 'flex';
+    document.getElementById('historyContainer').style.display = 'none';
+});
+
+document.getElementById('navHistory').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    document.getElementById('navHistory').classList.add('active');
+    document.querySelector('.dashboard-cards').style.display = 'none';
+    document.getElementById('productsContainer').style.display = 'none';
+    document.getElementById('historyContainer').style.display = 'flex';
+    fetchTransactions();
+});
+
+// Barchasini o'chirish (API orqali)
+const deleteAllBtn = document.getElementById('deleteAllBtn');
+if (deleteAllBtn) {
+    deleteAllBtn.addEventListener('click', async function() {
+        if(confirm("DIQQAT! Rostdan ham BARCHA mahsulotlarni o'chirib yubormoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi!")) {
+            try {
+                await fetch('/api/products/all', { method: 'DELETE' });
+                await init();
+            } catch (e) {
+                alert("O'chirishda xatolik yuz berdi!");
+            }
+        }
+    });
+}
+
+// CSV dan yuklash
+const importCsvBtn = document.getElementById('importCsvBtn');
+const csvFileInput = document.getElementById('csvFileInput');
+
+if (importCsvBtn && csvFileInput) {
+    importCsvBtn.addEventListener('click', () => {
+        csvFileInput.click();
+    });
+
+    csvFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        importCsvBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Yuklanmoqda...';
+        importCsvBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/import/csv', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(`Muvaffaqiyatli yuklandi!\n\nQo'shilgan yangi mahsulotlar: ${result.added}\nYangilangan mahsulotlar (faqat soni oshdi): ${result.updated}`);
+                await init();
+            } else {
+                alert("Xatolik: " + (result.error || "Noma'lum xatolik"));
+            }
+        } catch (error) {
+            console.error("Yuklashda xatolik:", error);
+            alert("Faylni yuklashda server bilan bog'lanishda xato yuz berdi.");
+        } finally {
+            importCsvBtn.innerHTML = '<i class="fa-solid fa-file-import"></i> CSV yuklash';
+            importCsvBtn.disabled = false;
+            csvFileInput.value = ''; // Reset
+        }
+    });
+}
+
+// Tahrirlash uchun yuklash
+window.editProduct = function(id) {
+    const product = products.find(p => p.id === id);
+    if(product) {
+        modalTitle.innerText = "Mahsulotni Tahrirlash";
+        productId.value = product.id;
+        productName.value = product.name;
+        productCategory.value = product.category;
+        productQuantity.value = product.quantity;
+        productUnit.value = product.unit;
+        productMin.value = product.min;
+        document.getElementById('productPrice').value = product.price || 0;
+        openModal(true);
+    }
+}
+
+// Qidiruv
+searchInput.addEventListener('input', (e) => {
+    renderTable(e.target.value);
+});
+
+// Event Listeners
+addProductBtn.addEventListener('click', () => openModal(false));
+closeModalBtn.addEventListener('click', closeModal);
+cancelBtn.addEventListener('click', closeModal);
+
+// Modal tashqarisiga bossa yopish
+productModal.addEventListener('click', (e) => {
+    if (e.target === productModal) {
+        closeModal();
+    }
+});
+
+// Esc tugmasi bosilganda modalni yopish
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && productModal.classList.contains('show')) {
+        closeModal();
+    }
+});
+
+// Ishga tushirish
+init();
+
+// Bot orqali avtomatik ishlatib ko'rsatish (Demo Mode)
+// Demo funksiyasi o'chirildi, chunki u sizga xalaqit berishi mumkin.
+
+</script>
+</body>
+</html>
+
