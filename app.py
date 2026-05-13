@@ -2,13 +2,37 @@ import os
 import sqlite3
 import pyodbc
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, render_template, Response
+from flask import Flask, request, jsonify, render_template, Response, redirect, url_for
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'default-secret-key-123')
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
 DB_FILE = 'database.db'
 AZURE_CONN_STR = os.getenv('AZURE_SQL_CONNECTIONSTRING')
+
+class User(UserMixin):
+    def __init__(self, id, username):
+        self.id = id
+        self.username = username
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn, is_azure = get_db_connection()
+    c = conn.cursor()
+    c.execute('SELECT id, username FROM users WHERE id = ?', (user_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return User(id=row[0], username=row[1])
+    return None
 
 def get_db_connection():
     if AZURE_CONN_STR:
@@ -52,6 +76,14 @@ def init_db():
                 FOREIGN KEY (product_id) REFERENCES products (id)
             )
         ''')
+        c.execute('''
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'users')
+            CREATE TABLE users (
+                id INT PRIMARY KEY IDENTITY(1,1),
+                username NVARCHAR(100) UNIQUE NOT NULL,
+                password NVARCHAR(255) NOT NULL
+            )
+        ''')
     else:
         # SQLite uchun jadval yaratish
         c.execute('''
@@ -74,6 +106,13 @@ def init_db():
                 price REAL NOT NULL,
                 date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (product_id) REFERENCES products (id)
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL
             )
         ''')
         
@@ -111,11 +150,40 @@ def dict_from_row(row, is_azure=False):
         # sqlite3 row to dict
         return dict(row)
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        conn, is_azure = get_db_connection()
+        c = conn.cursor()
+        c.execute('SELECT id, username, password FROM users WHERE username = ?', (username,))
+        row = c.fetchone()
+        conn.close()
+        
+        if row and check_password_hash(row[2], password):
+            user = User(id=row[0], username=row[1])
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error="Login yoki parol noto'g'ri!")
+            
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 @app.route('/api/products', methods=['GET'])
+@login_required
 def get_products():
     conn, is_azure = get_db_connection()
     c = conn.cursor()
@@ -138,6 +206,7 @@ def get_products():
     return jsonify(products)
 
 @app.route('/api/products', methods=['POST'])
+@login_required
 def add_product():
     data = request.json
     conn, is_azure = get_db_connection()
@@ -179,6 +248,7 @@ def add_product():
         return jsonify(data), 201
 
 @app.route('/api/products/<int:id>', methods=['PUT'])
+@login_required
 def update_product(id):
     data = request.json
     conn, is_azure = get_db_connection()
@@ -190,6 +260,7 @@ def update_product(id):
     return jsonify({"status": "success"})
 
 @app.route('/api/products/<int:id>', methods=['DELETE'])
+@login_required
 def delete_product(id):
     conn, is_azure = get_db_connection()
     c = conn.cursor()
@@ -199,6 +270,7 @@ def delete_product(id):
     return jsonify({"status": "success"})
 
 @app.route('/api/products/<int:id>/withdraw', methods=['POST'])
+@login_required
 def withdraw_product(id):
     data = request.json
     amount = float(data.get('amount', 0))
@@ -230,6 +302,7 @@ def withdraw_product(id):
     return jsonify({"status": "success", "new_quantity": new_qty})
 
 @app.route('/api/products/all', methods=['DELETE'])
+@login_required
 def delete_all_products():
     conn, is_azure = get_db_connection()
     c = conn.cursor()
@@ -243,6 +316,7 @@ import csv
 from flask import Response
 
 @app.route('/api/export/csv')
+@login_required
 def export_csv():
     conn, is_azure = get_db_connection()
     c = conn.cursor()
@@ -267,6 +341,7 @@ def export_csv():
 import codecs
 
 @app.route('/api/import/csv', methods=['POST'])
+@login_required
 def import_csv():
     if 'file' not in request.files:
         return jsonify({"error": "Fayl topilmadi"}), 400
@@ -340,6 +415,7 @@ def import_csv():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/transactions', methods=['GET'])
+@login_required
 def get_transactions():
     conn, is_azure = get_db_connection()
     c = conn.cursor()
