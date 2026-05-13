@@ -891,15 +891,20 @@ notifDropdown.addEventListener('click', (e) => e.stopPropagation());
 async function init() {
     try {
         const response = await fetch('/api/products');
-        products = await response.json();
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || "Serverda noma'lum xatolik");
+        }
+        
+        products = data;
         renderTable();
         updateDashboard();
-        fetchTransactions(); // Tarixni yangilash
-        updateCharts(); // Grafikni yangilash
+        fetchTransactions();
+        updateCharts();
     } catch (e) {
         console.error("Server bilan bog'lanishda xatolik:", e);
-        // Batafsil xatoni ko'rsatish
-        alert("Xatolik yuz berdi: " + e.message);
+        alert("SERVER XATOSI: " + e.message);
     }
 }
 
