@@ -898,7 +898,8 @@ async function init() {
         updateCharts(); // Grafikni yangilash
     } catch (e) {
         console.error("Server bilan bog'lanishda xatolik:", e);
-        alert("Serverdan ma'lumot olishda xatolik yuz berdi!");
+        // Batafsil xatoni ko'rsatish
+        alert("Xatolik yuz berdi: " + e.message);
     }
 }
 
