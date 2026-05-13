@@ -8,34 +8,42 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Azure (Linux) serveri uchun to'g'ri drayver nomidan foydalanamiz
-CONN_STR = (
-    "Driver={ODBC Driver 17 for SQL Server};"
-    "Server=tcp:demo-azure-4testing.database.windows.net,1433;"
-    "Database=demoDB4Azure;"
-    "Uid=azure-admin2;"
-    "Pwd=Omborxona2026!;"
-    "Encrypt=yes;"
-    "TrustServerCertificate=no;"
-    "Connection Timeout=30;"
-)
-
 def get_db_connection():
-    try:
-        conn = pyodbc.connect(CONN_STR)
-        return conn, True
-    except Exception as e:
-        print(f"Azure error with Driver 17: {e}")
-        # Agar Driver 17 bo'lmasa, Driver 18 ni sinab ko'ramiz
+    # Azure drayverlarini avtomatik topish
+    available_drivers = [d for d in pyodbc.drivers()]
+    print(f"Available drivers: {available_drivers}")
+    
+    # Bizga kerakli drayverni tanlash
+    driver = None
+    for d in available_drivers:
+        if "ODBC Driver" in d and "SQL Server" in d:
+            driver = d
+            break
+    if not driver and available_drivers:
+        driver = available_drivers[0]
+    
+    if driver:
         try:
-            conn_str18 = CONN_STR.replace("Driver 17", "Driver 18")
-            conn = pyodbc.connect(conn_str18 + "TrustServerCertificate=yes;")
+            conn_str = (
+                f"Driver={{{driver}}};"
+                "Server=tcp:demo-azure-4testing.database.windows.net,1433;"
+                "Database=demoDB4Azure;"
+                "Uid=azure-admin2;"
+                "Pwd=Omborxona2026!;"
+                "Encrypt=yes;"
+                "TrustServerCertificate=no;"
+                "Connection Timeout=30;"
+            )
+            conn = pyodbc.connect(conn_str)
             return conn, True
-        except:
-            print("Fallback to SQLite")
-            conn = sqlite3.connect('database.db')
-            conn.row_factory = sqlite3.Row
-            return conn, False
+        except Exception as e:
+            print(f"Azure connection error: {e}")
+            raise e # Xatoni ko'rish uchun tashqariga chiqaramiz
+    
+    # Fallback to SQLite (faqat mahalliyda yoki drayver bo'lmasa)
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    return conn, False
 
 @app.route('/')
 def index():
@@ -64,23 +72,23 @@ def get_products():
         conn.close()
         return jsonify(products)
     except Exception as e:
+        # Xatolikni foydalanuvchiga aniq ko'rsatamiz
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/products', methods=['POST'])
 def add_product():
-    data = request.json
-    conn, is_azure = get_db_connection()
-    c = conn.cursor()
-    name = data['name'].strip()
-    c.execute('INSERT INTO products (name, category, quantity, unit, min_quantity, price) VALUES (?, ?, ?, ?, ?, ?)',
-              (name, data['category'], data['quantity'], data['unit'], data['min'], data.get('price', 0)))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"}), 201
-
-@app.route('/api/transactions', methods=['GET'])
-def get_transactions():
-    return jsonify([])
+    try:
+        data = request.json
+        conn, is_azure = get_db_connection()
+        c = conn.cursor()
+        name = data['name'].strip()
+        c.execute('INSERT INTO products (name, category, quantity, unit, min_quantity, price) VALUES (?, ?, ?, ?, ?, ?)',
+                  (name, data['category'], data['quantity'], data['unit'], data['min'], data.get('price', 0)))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
