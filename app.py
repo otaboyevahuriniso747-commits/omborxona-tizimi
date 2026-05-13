@@ -7,52 +7,20 @@ from flask import Flask, request, jsonify, render_template, Response
 load_dotenv()
 
 app = Flask(__name__)
-DB_FILE = 'database.db'
-AZURE_CONN_STR = os.getenv('AZURE_SQL_CONNECTIONSTRING')
+
+# To'g'ridan-to'g'ri ulanish kodi (Azure portalidagi bilan bir xil)
+CONN_STR = "Driver={SQL Server};Server=tcp:demo-azure-4testing.database.windows.net,1433;Database=demoDB4Azure;Uid=azure-admin2;Pwd=Omborxona2026!;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
 
 def get_db_connection():
-    if AZURE_CONN_STR:
-        try:
-            conn_str = AZURE_CONN_STR.strip('"').strip("'")
-            conn = pyodbc.connect(conn_str)
-            return conn, True
-        except Exception as e:
-            print(f"Azure SQL error: {e}")
-    
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    return conn, False
-
-def init_db():
-    conn, is_azure = get_db_connection()
-    c = conn.cursor()
-    if is_azure:
-        c.execute('''
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'products')
-            CREATE TABLE products (
-                id INT PRIMARY KEY IDENTITY(1,1),
-                name NVARCHAR(255) NOT NULL,
-                category NVARCHAR(255) NOT NULL,
-                quantity FLOAT NOT NULL,
-                unit NVARCHAR(50) NOT NULL,
-                min_quantity FLOAT NOT NULL,
-                price FLOAT DEFAULT 0
-            )
-        ''')
-    else:
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                category TEXT NOT NULL,
-                quantity REAL NOT NULL,
-                unit TEXT NOT NULL,
-                min_quantity REAL NOT NULL,
-                price REAL DEFAULT 0
-            )
-        ''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = pyodbc.connect(CONN_STR)
+        return conn, True
+    except Exception as e:
+        print(f"Azure error: {e}")
+        # Agar ulanolmasa, SQLite ga o'tadi
+        conn = sqlite3.connect('database.db')
+        conn.row_factory = sqlite3.Row
+        return conn, False
 
 @app.route('/')
 def index():
@@ -94,10 +62,7 @@ def add_product():
 
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
-    # Vaqtincha bo'sh ro'yxat qaytaramiz yoki soddalashtiramiz
     return jsonify([])
-
-init_db()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
