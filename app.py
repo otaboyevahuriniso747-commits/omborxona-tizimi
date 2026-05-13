@@ -2,42 +2,17 @@ import os
 import sqlite3
 import pyodbc
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, render_template, Response, redirect, url_for
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, request, jsonify, render_template, Response
 
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'default-secret-key-123')
-
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-
 DB_FILE = 'database.db'
 AZURE_CONN_STR = os.getenv('AZURE_SQL_CONNECTIONSTRING')
-
-class User(UserMixin):
-    def __init__(self, id, username):
-        self.id = id
-        self.username = username
-
-@login_manager.user_loader
-def load_user(user_id):
-    conn, is_azure = get_db_connection()
-    c = conn.cursor()
-    c.execute('SELECT id, username FROM users WHERE id = ?', (user_id,))
-    row = c.fetchone()
-    conn.close()
-    if row:
-        return User(id=row[0], username=row[1])
-    return None
 
 def get_db_connection():
     if AZURE_CONN_STR:
         try:
-            # Qo'shtirnoqlarni olib tashlash (Azure portalidan xato nusxalangan bo'lsa)
             conn_str = AZURE_CONN_STR.strip('"').strip("'")
             conn = pyodbc.connect(conn_str)
             return conn, True
@@ -53,7 +28,6 @@ def init_db():
     c = conn.cursor()
     
     if is_azure:
-        # Azure SQL (T-SQL) uchun jadval yaratish
         c.execute('''
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'products')
             CREATE TABLE products (
@@ -78,16 +52,7 @@ def init_db():
                 FOREIGN KEY (product_id) REFERENCES products (id)
             )
         ''')
-        c.execute('''
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'users')
-            CREATE TABLE users (
-                id INT PRIMARY KEY IDENTITY(1,1),
-                username NVARCHAR(100) UNIQUE NOT NULL,
-                password NVARCHAR(255) NOT NULL
-            )
-        ''')
     else:
-        # SQLite uchun jadval yaratish
         c.execute('''
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,147 +75,65 @@ def init_db():
                 FOREIGN KEY (product_id) REFERENCES products (id)
             )
         ''')
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
-            )
-        ''')
-        
-        # Eskidan bor bazalarni yangilash (price ustuni bo'lmasa)
-        try:
-            c.execute('ALTER TABLE products ADD COLUMN price REAL DEFAULT 0')
-        except sqlite3.OperationalError:
-            pass
-
-    # Boshlang'ich ma'lumotlarni qo'shish agar baza bo'sh bo'lsa
-    c.execute('SELECT COUNT(*) FROM products')
-    count = c.fetchone()[0]
-    if count == 0:
-        initial_products = [
-            ('MacBook Pro M2', 'Elektronika', 15, 'dona', 5, 25000000),
-            ('A4 Qog\'oz (Svetocopy)', 'Kantselyariya', 3, 'quti', 10, 45000),
-            ('Simsiz Sishqoncha', 'Elektronika', 0, 'dona', 8, 120000),
-            ('Zavod Suyuqligi (Moy)', 'Xom-ashyo', 45.5, 'litr', 50, 75000)
-        ]
-        if is_azure:
-            for p in initial_products:
-                c.execute('INSERT INTO products (name, category, quantity, unit, min_quantity, price) VALUES (?, ?, ?, ?, ?, ?)', p)
-        else:
-            c.executemany('INSERT INTO products (name, category, quantity, unit, min_quantity, price) VALUES (?, ?, ?, ?, ?, ?)', initial_products)
         
     conn.commit()
     conn.close()
 
 def dict_from_row(row, is_azure=False):
     if is_azure:
-        # pyodbc row to dict
         columns = [column[0] for column in row.cursor_description]
         return dict(zip(columns, row))
-    else:
-        # sqlite3 row to dict
-        return dict(row)
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        conn, is_azure = get_db_connection()
-        c = conn.cursor()
-        c.execute('SELECT id, username, password FROM users WHERE username = ?', (username,))
-        row = c.fetchone()
-        conn.close()
-        
-        if row and check_password_hash(row[2], password):
-            user = User(id=row[0], username=row[1])
-            login_user(user)
-            return redirect(url_for('index'))
-        else:
-            return render_template('login.html', error="Login yoki parol noto'g'ri!")
-            
-    return render_template('login.html')
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('login'))
+    return dict(row)
 
 @app.route('/')
-@login_required
 def index():
     return render_template('index.html')
 
 @app.route('/api/products', methods=['GET'])
-@login_required
 def get_products():
     conn, is_azure = get_db_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM products ORDER BY id DESC')
     rows = c.fetchall()
-    
     products = []
     for row in rows:
         r = dict_from_row(row, is_azure)
         products.append({
-            'id': r['id'],
-            'name': r['name'],
-            'category': r['category'],
-            'quantity': r['quantity'],
-            'unit': r['unit'],
-            'min': r['min_quantity'],
-            'price': r['price']
+            'id': r['id'], 'name': r['name'], 'category': r['category'],
+            'quantity': r['quantity'], 'unit': r['unit'],
+            'min': r['min_quantity'], 'price': r['price']
         })
     conn.close()
     return jsonify(products)
 
 @app.route('/api/products', methods=['POST'])
-@login_required
 def add_product():
     data = request.json
     conn, is_azure = get_db_connection()
     c = conn.cursor()
-    
     product_name = data['name'].strip()
-    
-    # Mahsulot bazada bor-yo'qligini nomiga qarab tekshirish
     c.execute('SELECT id, quantity FROM products WHERE LOWER(name) = LOWER(?)', (product_name,))
-    existing_product = c.fetchone()
-    
-    if existing_product:
-        existing_id = existing_product[0]
-        new_qty = float(existing_product[1]) + float(data['quantity'])
-        c.execute('UPDATE products SET quantity=? WHERE id=?', (new_qty, existing_id))
+    existing = c.fetchone()
+    if existing:
+        new_qty = float(existing[1]) + float(data['quantity'])
+        c.execute('UPDATE products SET quantity=? WHERE id=?', (new_qty, existing[0]))
         conn.commit()
         conn.close()
-        
-        data['id'] = existing_id
+        data['id'] = existing[0]
         data['quantity'] = new_qty
         return jsonify(data), 200
     else:
         c.execute('INSERT INTO products (name, category, quantity, unit, min_quantity, price) VALUES (?, ?, ?, ?, ?, ?)',
                   (product_name, data['category'], data['quantity'], data['unit'], data['min'], data.get('price', 0)))
-        
-        if is_azure:
-            c.execute("SELECT @@IDENTITY")
-            new_id = c.fetchone()[0]
-        else:
-            new_id = c.lastrowid
-        
+        new_id = c.fetchone()[0] if is_azure else c.lastrowid
         c.execute('INSERT INTO transactions (product_id, type, quantity, price) VALUES (?, ?, ?, ?)',
                   (new_id, 'Kirim', data['quantity'], data.get('price', 0)))
-        
         conn.commit()
         conn.close()
-        
         data['id'] = new_id
         return jsonify(data), 201
 
 @app.route('/api/products/<int:id>', methods=['PUT'])
-@login_required
 def update_product(id):
     data = request.json
     conn, is_azure = get_db_connection()
@@ -262,7 +145,6 @@ def update_product(id):
     return jsonify({"status": "success"})
 
 @app.route('/api/products/<int:id>', methods=['DELETE'])
-@login_required
 def delete_product(id):
     conn, is_azure = get_db_connection()
     c = conn.cursor()
@@ -272,184 +154,43 @@ def delete_product(id):
     return jsonify({"status": "success"})
 
 @app.route('/api/products/<int:id>/withdraw', methods=['POST'])
-@login_required
 def withdraw_product(id):
     data = request.json
     amount = float(data.get('amount', 0))
-    
     conn, is_azure = get_db_connection()
     c = conn.cursor()
-    c.execute('SELECT quantity, name FROM products WHERE id=?', (id,))
+    c.execute('SELECT quantity FROM products WHERE id=?', (id,))
     product = c.fetchone()
-    
-    if not product:
+    if not product or product[0] < amount:
         conn.close()
-        return jsonify({"error": "Mahsulot topilmadi"}), 404
-        
-    current_qty = product[0]
-    if current_qty < amount:
-        conn.close()
-        return jsonify({"error": f"Omborda yetarli mahsulot yo'q! (Hozirgi qoldiq: {current_qty})"}), 400
-        
-    new_qty = current_qty - amount
+        return jsonify({"error": "Mahsulot yetarli emas"}), 400
+    new_qty = product[0] - amount
     c.execute('UPDATE products SET quantity=? WHERE id=?', (new_qty, id))
-    
-    # Tranzaksiyaga yozish (Chiqim)
     c.execute('INSERT INTO transactions (product_id, type, quantity, price) VALUES (?, ?, ?, ?)',
               (id, 'Chiqim', amount, data.get('price', 0)))
-    
     conn.commit()
     conn.close()
-    
     return jsonify({"status": "success", "new_quantity": new_qty})
 
-@app.route('/api/products/all', methods=['DELETE'])
-@login_required
-def delete_all_products():
-    conn, is_azure = get_db_connection()
-    c = conn.cursor()
-    c.execute('DELETE FROM products')
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
-
-import io
-import csv
-from flask import Response
-
-@app.route('/api/export/csv')
-@login_required
-def export_csv():
-    conn, is_azure = get_db_connection()
-    c = conn.cursor()
-    c.execute('SELECT name, category, quantity, unit, min_quantity, price FROM products ORDER BY id DESC')
-    rows = c.fetchall()
-    conn.close()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Mahsulot Nomi', 'Toifa', 'Miqdori', "O'lchov Birligi", 'Minimal Chegara', 'Narxi'])
-    for row in rows:
-        writer.writerow(list(row))
-    
-    csv_data = '\ufeff' + output.getvalue()
-    
-    return Response(
-        csv_data,
-        mimetype="text/csv",
-        headers={"Content-disposition": "attachment; filename=omborxona_hisoboti.csv"}
-    )
-
-import codecs
-
-@app.route('/api/import/csv', methods=['POST'])
-@login_required
-def import_csv():
-    if 'file' not in request.files:
-        return jsonify({"error": "Fayl topilmadi"}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "Fayl tanlanmadi"}), 400
-        
-    if not file.filename.endswith('.csv'):
-        return jsonify({"error": "Faqat .csv formatdagi fayllar qabul qilinadi"}), 400
-
-    try:
-        stream = codecs.iterdecode(file.stream, 'utf-8-sig')
-        csv_reader = csv.reader(stream)
-        next(csv_reader, None)
-        
-        conn, is_azure = get_db_connection()
-        c = conn.cursor()
-        
-        added_count = 0
-        updated_count = 0
-        
-        for row in csv_reader:
-            if not row or len(row) < 3:
-                continue 
-                
-            name = str(row[0]).strip()
-            category = str(row[1]).strip()
-            
-            try:
-                quantity = float(row[2])
-            except ValueError:
-                quantity = 0.0
-                
-            unit = str(row[3]).strip() if len(row) > 3 and row[3].strip() else "dona"
-            
-            try:
-                min_quantity = float(row[4]) if len(row) > 4 else 0.0
-            except ValueError:
-                min_quantity = 0.0
-
-            try:
-                price = float(row[5]) if len(row) > 5 else 0.0
-            except ValueError:
-                price = 0.0
-                
-            if not name:
-                continue
-                
-            c.execute('SELECT id, quantity FROM products WHERE LOWER(name) = LOWER(?)', (name,))
-            existing = c.fetchone()
-            
-            if existing:
-                existing_id = existing[0]
-                c.execute('''
-                    UPDATE products 
-                    SET category=?, quantity=?, unit=?, min_quantity=?, price=? 
-                    WHERE id=?
-                ''', (category, quantity, unit, min_quantity, price, existing_id))
-                updated_count += 1
-            else:
-                c.execute('INSERT INTO products (name, category, quantity, unit, min_quantity, price) VALUES (?, ?, ?, ?, ?, ?)',
-                          (name, category, quantity, unit, min_quantity, price))
-                added_count += 1
-                
-        conn.commit()
-        conn.close()
-        return jsonify({"status": "success", "added": added_count, "updated": updated_count}), 200
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/api/transactions', methods=['GET'])
-@login_required
 def get_transactions():
     conn, is_azure = get_db_connection()
     c = conn.cursor()
-    c.execute('''
-        SELECT TOP 50 t.*, p.name as product_name, p.unit 
-        FROM transactions t 
-        LEFT JOIN products p ON t.product_id = p.id 
-        ORDER BY t.date DESC
-    ''') if is_azure else c.execute('''
-        SELECT t.*, p.name as product_name, p.unit 
-        FROM transactions t 
-        LEFT JOIN products p ON t.product_id = p.id 
-        ORDER BY t.date DESC LIMIT 50
-    ''')
-    
+    if is_azure:
+        c.execute('SELECT TOP 50 t.*, p.name as product_name, p.unit FROM transactions t LEFT JOIN products p ON t.product_id = p.id ORDER BY t.date DESC')
+    else:
+        c.execute('SELECT t.*, p.name as product_name, p.unit FROM transactions t LEFT JOIN products p ON t.product_id = p.id ORDER BY t.date DESC LIMIT 50')
     rows = c.fetchall()
     transactions = []
     for row in rows:
         r = dict_from_row(row, is_azure)
         transactions.append({
-            'id': r['id'],
-            'product_name': r['product_name'] or "O'chirilgan mahsulot",
-            'type': r['type'],
-            'quantity': r['quantity'],
-            'price': r['price'],
-            'unit': r['unit'],
-            'date': r['date']
+            'id': r['id'], 'product_name': r['product_name'], 'type': r['type'],
+            'quantity': r['quantity'], 'price': r['price'], 'unit': r['unit'], 'date': r['date']
         })
     conn.close()
     return jsonify(transactions)
 
-# Bazani ilova yuklanishi bilan ishga tushiramiz
 init_db()
 
 if __name__ == '__main__':
