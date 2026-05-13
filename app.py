@@ -37,7 +37,9 @@ def load_user(user_id):
 def get_db_connection():
     if AZURE_CONN_STR:
         try:
-            conn = pyodbc.connect(AZURE_CONN_STR)
+            # Qo'shtirnoqlarni olib tashlash (Azure portalidan xato nusxalangan bo'lsa)
+            conn_str = AZURE_CONN_STR.strip('"').strip("'")
+            conn = pyodbc.connect(conn_str)
             return conn, True
         except Exception as e:
             print(f"Azure SQL-ga ulanib bo'lmadi: {e}. SQLite-ga o'tilmoqda...")
